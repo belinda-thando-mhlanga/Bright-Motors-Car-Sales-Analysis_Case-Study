@@ -1,5 +1,5 @@
+
 -- EXPLORATORY ANALYSIS: Understanding the Bright Motors Data
-===============================================================================================
 SELECT * FROM BRIGHT_MOTORS.CASESTUDY.CARSALES LIMIT 100;
 
 -- Query 1: Check total number of records and basic data quality
@@ -121,6 +121,7 @@ SELECT
 
     odometer AS mileage,
 
+    
 	 -- Categorize by mileage
         CASE 
             WHEN mileage < 50000 THEN 'Low Mileage (<50k)'
@@ -137,14 +138,25 @@ SELECT
             ELSE 'Luxury (>50k)'
         END AS selling_price_bucket,
  
-    -- Time of day (HH24:MI:SS)
+    -- Time stamp fields
     TO_VARCHAR(sale_ts, 'HH24:MI:SS') AS time,
-
-    -- Date Only
     TO_DATE(sale_ts) AS date,
+    EXTRACT(YEAR FROM sale_ts) AS Year,
+    MONTHNAME(sale_ts) AS Month_Name,
+    EXTRACT(DAY FROM sale_ts) AS Day_of_Month,
+    DAYNAME(sale_ts) AS Weekday_Name,
+    EXTRACT(HOUR FROM sale_ts) AS Hour,
 
     -- Formatted Year Name
     TO_CHAR(sale_ts, 'MON DD YYYY') AS year_name,
+
+    --Time Bucket
+     CASE 
+        WHEN EXTRACT(HOUR FROM sale_ts) BETWEEN 6  AND 11 THEN 'Morning (06:00-11:59)'
+        WHEN EXTRACT(HOUR FROM sale_ts) BETWEEN 12 AND 17 THEN 'Afternoon (12:00-17:59)'
+        WHEN EXTRACT(HOUR FROM sale_ts) BETWEEN 18 AND 23 THEN 'Evening (18:00-23:59)'
+        ELSE 'Night (00:00-05:59)'
+    END AS Time_of_day,
 
     -- Year Grouping
     CASE
