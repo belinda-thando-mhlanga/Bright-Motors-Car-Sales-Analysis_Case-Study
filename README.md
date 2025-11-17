@@ -1,5 +1,5 @@
 # Bright-Motors-Car-Sales-Analysis_Case-Study
-##📌Overview
+#📌Overview
 This Case study presents a data-driven analysis of car sales performance across various metrics, such as revenue, sales, and gross profit. The purpose is to uncover key business insights that can support strategic decision-making, optimise sales operations and improve profitability.
 
 🎯##Objectives
