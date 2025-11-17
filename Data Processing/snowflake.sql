@@ -100,6 +100,113 @@ ORDER BY "YEAR" DESC;
 
 ===============================BIGQUERY=====================================================================
 
+SELECT * FROM BRIGHT_MOTORS.CASESTUDY.CARSALES LIMIT 100;
+
+
+  SELECT
+    SALEDATE, -- The original VARCHAR column (e.g., 'Fri Sep 25 2026 00:00:00 GMT-0500')
+    (SALEDATE::TIMESTAMP_TZ)::DATE AS CLEAN_SALE_DATE -- <-- 1. Cast to TIMESTAMP_TZ, then 2. Cast to DATE
+FROM
+    BRIGHT_MOTORS.CASESTUDY.CARSALES;
+-- Query 1: Check total number of records and basic data quality
+SELECT 
+    COUNT(*) AS total_records,
+    COUNT(DISTINCT vin) AS unique_vins,
+    COUNT(DISTINCT make) AS unique_makes,
+    COUNT(DISTINCT state) AS unique_states,
+    MIN(saledate) AS earliest_sale_text,
+    MAX(saledate) AS latest_sale_text
+FROM BRIGHT_MOTORS.CASESTUDY.CARSALES;
+
+-- Query 2: Check for missing values in key columns
+SELECT 
+    COUNT(*) AS total_rows,
+    COUNT(sellingprice) AS has_selling_price,
+    COUNT(odometer) AS has_odometer,
+    COUNT(condition) AS has_condition,
+    COUNT(mmr) AS has_mmr,
+    COUNT(*) - COUNT(sellingprice) AS missing_price,
+    COUNT(*) - COUNT(odometer) AS missing_odometer
+FROM BRIGHT_MOTORS.CASESTUDY.CARSALES;
+
+-- Query 3: Top 10 car makes by sales volume
+SELECT 
+    make,
+    COUNT(*) AS total_sales,
+    AVG(sellingprice) AS avg_price,
+    MIN(sellingprice) AS min_price,
+    MAX(sellingprice) AS max_price
+FROM BRIGHT_MOTORS.CASESTUDY.CARSALES
+GROUP BY make
+ORDER BY total_sales DESC
+LIMIT 10;
+
+-- Query 4: Sales by state (regional performance)
+SELECT 
+    state,
+    COUNT(*) AS total_sales,
+    AVG(sellingprice) AS avg_selling_price,
+    SUM(sellingprice) AS total_revenue
+FROM BRIGHT_MOTORS.CASESTUDY.CARSALES
+GROUP BY state
+ORDER BY total_revenue DESC;
+
+-- Query 5: Price range distribution
+SELECT 
+    CASE 
+        WHEN sellingprice BETWEEN 0 AND 9999 THEN 'Under 10K'
+        WHEN sellingprice BETWEEN 10000 AND 19999 THEN '10K-20K'
+        WHEN sellingprice BETWEEN 20000 AND 29999 THEN '20K-30K'
+        WHEN sellingprice BETWEEN 30000 AND 39999 THEN '30K-40K'
+        WHEN sellingprice >= 40000 THEN 'Over 40K'
+    END AS selling_price_bucket,
+    COUNT(*) AS car_count,
+    AVG(odometer) AS avg_mileage,
+    AVG(sellingprice) AS avg_price,
+    MIN(sellingprice) AS min_price,
+    MAX(sellingprice) AS max_price
+FROM BRIGHT_MOTORS.CASESTUDY.CARSALES
+WHERE sellingprice IS NOT NULL
+GROUP BY selling_price_bucket
+ORDER BY MIN(sellingprice);
+
+-- Query 6: Top vehicle body types
+SELECT 
+    body,
+    COUNT(*) AS total_sales,
+    AVG(sellingprice) AS avg_price
+FROM BRIGHT_MOTORS.CASESTUDY.CARSALES
+WHERE body IS NOT NULL
+GROUP BY body
+ORDER BY total_sales DESC;
+
+-- Query 7: Top 10 models overall
+SELECT 
+    make,
+    model,
+    COUNT(*) AS units_sold,
+    AVG(sellingprice) AS avg_price,
+    SUM(sellingprice) AS total_revenue
+FROM BRIGHT_MOTORS.CASESTUDY.CARSALES
+GROUP BY make, model
+ORDER BY total_revenue DESC
+LIMIT 10;
+
+-- Query 8: Check data distribution by year
+SELECT 
+    "YEAR",
+    COUNT(*) AS car_count,
+    AVG(sellingprice) AS avg_price,
+    AVG(odometer) AS avg_mileage
+FROM BRIGHT_MOTORS.CASESTUDY.CARSALES
+WHERE "YEAR" IS NOT NULL
+GROUP BY "YEAR"
+ORDER BY "YEAR" DESC;
+
+
+
+===============================BIGQUERY=====================================================================
+
 WITH Date_CTE AS (
     SELECT
         *,
@@ -109,17 +216,21 @@ WITH Date_CTE AS (
         ) AS sale_ts,
        FROM BRIGHT_MOTORS.CASESTUDY.CARSALES)
 
+---I used coalesce to adress the nulls in my table 
 SELECT
-    year,
-    make,
-    model,
-    state,
+    COALESCE(year, 0) AS year,
+    COALESCE(make, 'Unknown') AS make,
+    COALESCE(model, 'Unknown') AS model,
+    COALESCE(body, 'Unknown') AS body_type,
+    COALESCE(transmission, 'Unknown') AS transmission,
+    COALESCE(state, 'Unknown') AS state,
+    COALESCE(color, 'Unknown') AS color,
+    COALESCE(interior, 'Unknown') AS interior,
+    COALESCE(seller, 'Unknown') AS seller,
+    COALESCE(sellingprice, 0) AS total_revenue,
 
-    sellingprice,
-    SUM(year) AS total_year_manufacture,
     AVG(sellingprice) AS avg_price,
-
-    odometer AS mileage,
+    COALESCE(odometer, 0) AS mileage,
 
     
 	 -- Categorize by mileage
@@ -138,17 +249,24 @@ SELECT
             ELSE 'Luxury (>50k)'
         END AS selling_price_bucket,
  
-    -- Time stamp fields
-    TO_VARCHAR(sale_ts, 'HH24:MI:SS') AS time,
-    TO_DATE(sale_ts) AS date,
-    EXTRACT(YEAR FROM sale_ts) AS Year,
-    MONTHNAME(sale_ts) AS Month_Name,
-    EXTRACT(DAY FROM sale_ts) AS Day_of_Month,
-    DAYNAME(sale_ts) AS Weekday_Name,
-    EXTRACT(HOUR FROM sale_ts) AS Hour,
+    -- Time stamp fields. I used coalesce incase I have nulls
+    COALESCE(TO_VARCHAR(sale_ts, 'HH24:MI:SS'), 'Unknown') AS timeSold,
+    COALESCE(TO_DATE(sale_ts), NULL) AS dateSold,
+    COALESCE(EXTRACT(YEAR FROM sale_ts), 0) AS YearSold,
+    COALESCE(MONTHNAME(sale_ts), 'Unknown') AS Month_NameSold,
+    COALESCE(EXTRACT(DAY FROM sale_ts), 0) AS Day_of_MonthSold,
+    COALESCE(DAYNAME(sale_ts), 'Unknown') AS Weekday_NameSold,
+    COALESCE(EXTRACT(HOUR FROM sale_ts), 0) AS HourSold,
 
-    -- Formatted Year Name
-    TO_CHAR(sale_ts, 'MON DD YYYY') AS year_name,
+        -- TRANSMISSION
+        CASE 
+            WHEN TRANSMISSION = 'automatic' THEN 'Automatic'
+            WHEN TRANSMISSION = 'manual' THEN 'Manual'
+            ELSE 'Unknown'
+        END AS TRANSMISSION_TYPE,
+
+    -- Formatted Year Name, also address any nulls
+  COALESCE(TO_CHAR(sale_ts, 'MON DD YYYY'), 'Unknown') AS year_name,
 
     --Time Bucket
      CASE 
@@ -165,10 +283,10 @@ SELECT
         WHEN EXTRACT(YEAR FROM sale_ts) BETWEEN 2010 AND 2011 THEN '2010-2011 (Mid-Age)'
         WHEN EXTRACT(YEAR FROM sale_ts) BETWEEN 2005 AND 2009 THEN '2005-2009 (Older)'
         WHEN YEAR <= 2004 THEN 'Pre-2005 (Vintage)'
-END AS YEAR_CATEGORY,
+END AS YEARSOLD_CATEGORY,
 
     -- Day of Week (Mon, Tue, etc.)
-    TO_CHAR(sale_ts, 'DY') AS day_of_week,
+  COALESCE(TO_CHAR(sale_ts, 'DY'), 'Unknown') AS day_of_week
 
 FROM Date_CTE
 GROUP BY ALL;
